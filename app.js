@@ -4,17 +4,60 @@ const sqlite3 = require('sqlite3').verbose()
 const app = express();
 const port = 3000;
 
-const notes = { };
-let uniqueID = 1;
-
 app.use(express.json());
 //app.use(express.urlencoded({extended: true}))
 
+const db = new sqlite3.Database('./notes.db', (err) => {
+    if (err) {
+        return console.error(err.message);
+    }
+
+    console.log('The Notes SQLite database is now open and connected');
+});
+
+db.serialize(function () {
+    db.run ("CREATE TABLE IF NOT EXISTS 'notes' ('note' TEXT, PRIMARY KEY ('uid'))", [], 
+    function(err) {
+        if (err) {
+            return console.error(err.message);
+        }
+        console.log('"notes" table exists')
+    })
+})
+
+db.close((err) => {
+    if (err) {
+        return console.error(err.message);
+    }
+    console.log('The Notes SQLite database was successfully closed')
+})
+
+
 //routes
 app.post('/api/note', (req, res) => {
-    console.log("req body " + JSON.stringify(req.body))
-    notes[uniqueID] = req.body.noteContents
-    res.status(201).send("" + uniqueID++)
+   const db = new sqlite3.Database('./notes.db', function(err) {
+       if (err) {
+           return console.error(err.message);
+       }
+       console.log ('The Notes SQLite database is now open and connected on post route');
+   })
+
+   db.serialize(function () {
+       db.get("INSERT INTO 'notes' VALUES (?)", [req.body.noteContents],
+       function(err) {
+        if (err) {
+            return console.error(err.message);
+        }
+        res.send(this.uid)
+       })
+   })
+
+   db.close(function(err) {
+       if(err) {
+           return console.error(err.message);
+       }
+       console.log('The Notes Database was successfully closed')
+   })
 })
 
 app.get('/api/note/:uid', (req, res) => {
